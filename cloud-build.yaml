@@ -1,51 +1,43 @@
 steps:
-  # Build Docker image with latest n8n
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/${_PROJECT_ID}/n8n-serverless:$BUILD_ID', '.']
-  
-  # Push image with build ID tag
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/${_PROJECT_ID}/n8n-serverless:$BUILD_ID']
-  
-  # Also tag as latest
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['tag', 'gcr.io/${_PROJECT_ID}/n8n-serverless:$BUILD_ID', 'gcr.io/${_PROJECT_ID}/n8n-serverless:latest']
-  
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/${_PROJECT_ID}/n8n-serverless:latest']
-  
-  # Deploy to Cloud Run with full configuration
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args: [
-      'run', 'deploy', '${_SERVICE_NAME}',
-      '--image', 'gcr.io/${_PROJECT_ID}/n8n-serverless:latest',
-      '--region', '${_REGION}',
-      '--platform', 'managed',
-      '--no-allow-unauthenticated',
-      '--port', '${_N8N_PORT}',
-      '--memory', '2Gi',
-      '--cpu', '1', '--no-cpu-throttling',
-      '--min-instances', '1',
-      '--max-instances', '3',
-      '--concurrency', '80',
-      '--timeout', '3600',
-      '--set-env-vars', 'N8N_HOST=${_N8N_HOST},N8N_PORT=${_N8N_PORT},N8N_PROTOCOL=${_N8N_PROTOCOL},N8N_BASIC_AUTH_ACTIVE=${_N8N_BASIC_AUTH_ACTIVE},N8N_BASIC_AUTH_USER=${_N8N_BASIC_AUTH_USER},N8N_BASIC_AUTH_PASSWORD=${_N8N_BASIC_AUTH_PASSWORD},DB_TYPE=${_DB_TYPE},DB_SQLITE_POOL_SIZE=${_DB_SQLITE_POOL_SIZE},N8N_ENCRYPTION_KEY=${_N8N_ENCRYPTION_KEY},N8N_RUNNERS_ENABLED=${_N8N_RUNNERS_ENABLED},N8N_BLOCK_ENV_ACCESS_IN_NODE=${_N8N_BLOCK_ENV_ACCESS_IN_NODE},N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=${_N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS},GENERIC_TIMEZONE=${_GENERIC_TIMEZONE},TZ=${_TZ},N8N_EDITOR_BASE_URL=${_N8N_EDITOR_BASE_URL},N8N_WEBHOOK_URL=${_N8N_WEBHOOK_URL},HOME=${_N8N_HOME}'
-    ]
-  
-  # Set IAM policy to allow unauthenticated access
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args: [
-      'run', 'services', 'add-iam-policy-binding', '${_SERVICE_NAME}',
-      '--region', '${_REGION}',
-      '--member', 'allUsers',
-      '--role', 'roles/run.invoker'
-    ]
+# Build Docker image with latest n8n
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/n8n-repo/n8n-serverless:$BUILD_ID', '.']
+
+# Push image with build ID tag
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/n8n-repo/n8n-serverless:$BUILD_ID']
+
+# Also tag as latest
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['tag', '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/n8n-repo/n8n-serverless:$BUILD_ID', '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/n8n-repo/n8n-serverless:latest']
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/n8n-repo/n8n-serverless:latest']
+
+# Deploy to Cloud Run with corrected configuration
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: [
+    'run', 'deploy', '${_SERVICE_NAME}',
+    '--image', '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/n8n-repo/n8n-serverless:latest',
+    '--region', '${_REGION}',
+    '--platform', 'managed',
+    '--allow-unauthenticated',  # CHANGED: Removed 'no-'
+    '--port', '5678',  # CHANGED: Fixed port to 5678
+    '--memory', '2Gi',
+    '--cpu', '1',
+    '--min-instances', '0',  # CHANGED: True serverless
+    '--max-instances', '3',
+    '--concurrency', '80',
+    '--timeout', '1800',  # CHANGED: Increased timeout for startup
+    '--set-env-vars', 'N8N_HOST=0.0.0.0,N8N_PORT=5678,N8N_PROTOCOL=https,N8N_BASIC_AUTH_ACTIVE=true,N8N_BASIC_AUTH_USER=tanmay@betterprep.ai,N8N_BASIC_AUTH_PASSWORD=M#x46$$LZ&fUtc2u,DB_TYPE=sqlite,N8N_ENCRYPTION_KEY=2d51aedbfbffe89d9ad53182bd966398,N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false,N8N_RUNNERS_ENABLED=true,N8N_EDITOR_BASE_URL=https://n8n-serverless-1069021792204.us-central1.run.app,N8N_WEBHOOK_URL=https://n8n-serverless-1069021792204.us-central1.run.app,N8N_DISABLE_UI=false,N8N_DISABLE_PRODUCTION_MAIN_PROCESS=false,DB_SQLITE_POOL_SIZE=10,DB_SQLITE_VACUUM_ON_STARTUP=false,N8N_BLOCK_ENV_ACCESS_IN_NODE=false,N8N_SKIP_WEBHOOK_DEREGISTRATION_SHUTDOWN_PROCESS=true,GENERIC_TIMEZONE=UTC,TZ=UTC'
+  ]
+
+# REMOVED: IAM policy binding (not needed with --allow-unauthenticated)
 
 images:
-  - 'gcr.io/${_PROJECT_ID}/n8n-serverless:$BUILD_ID'
-  - 'gcr.io/${_PROJECT_ID}/n8n-serverless:latest'
+- '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/n8n-repo/n8n-serverless:$BUILD_ID'
+- '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/n8n-repo/n8n-serverless:latest'
 
-# Build options
 options:
   machineType: 'E2_HIGHCPU_8'
   diskSizeGb: 100
