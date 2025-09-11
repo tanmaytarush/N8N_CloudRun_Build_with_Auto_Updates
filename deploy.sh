@@ -111,7 +111,7 @@ deploy() {
     echo "🏗️  Deploying with Cloud Build..."
     gcloud builds submit \
       --config cloud-build.yaml \
-      --substitutions=_PROJECT_ID=$PROJECT_ID,_REGION=$REGION,_SERVICE_NAME=$SERVICE_NAME \
+      --substitutions=_PROJECT_ID=$PROJECT_ID,_REGION=$REGION,_SERVICE_NAME=$SERVICE_NAME,_DB_TYPE=${DB_TYPE:-postgresdb},_DB_HOST=${DB_POSTGRESDB_HOST:-127.0.0.1},_DB_PORT=${DB_POSTGRESDB_PORT:-5432},_DB_NAME=${DB_POSTGRESDB_DATABASE:-n8n},_DB_USER=${DB_POSTGRESDB_USER:-n8n},_DB_PASSWORD=${DB_POSTGRESDB_PASSWORD:-change-me},_DB_SCHEMA=${DB_POSTGRESDB_SCHEMA:-public},_CLOUDSQL_INSTANCE=${CLOUDSQL_INSTANCE:-} \
       --project $PROJECT_ID
     
     if [ $? -eq 0 ]; then

@@ -23,7 +23,7 @@ ENV N8N_SKIP_OWNER_SETUP=false
 # Create a startup script to ensure n8n starts properly
 RUN echo '#!/bin/sh' > /home/node/startup.sh && \
     echo 'echo "Starting n8n..."' >> /home/node/startup.sh && \
-    echo 'n8n start' >> /home/node/startup.sh && \
+    echo 'exec n8n start' >> /home/node/startup.sh && \
     chmod +x /home/node/startup.sh
 
 # Use the startup script
