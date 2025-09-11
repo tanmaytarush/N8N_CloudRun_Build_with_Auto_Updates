@@ -1,28 +1,30 @@
-FROM docker.n8n.io/n8nio/n8n:latest
+# Use n8n image from Docker Hub (better architecture support)
+FROM n8nio/n8n:latest
 
-# Cloud Run optimized configuration
+# Set working directory
+WORKDIR /home/node
+
+# Switch to node user
+USER node
+
+# Expose port 5678
+EXPOSE 5678
+
+# Set environment variables for Cloud Run
 ENV N8N_HOST=0.0.0.0
 ENV N8N_PORT=5678
 ENV N8N_PROTOCOL=https
-ENV N8N_BASIC_AUTH_ACTIVE=true
-ENV N8N_BASIC_AUTH_USER=admin
-ENV N8N_BASIC_AUTH_PASSWORD="M#x46\$LZ&fUtc2u"
-ENV DB_TYPE=sqlite
-ENV N8N_ENCRYPTION_KEY=2d51aedbfbffe89d9ad53182bd966398
-ENV N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false
-ENV N8N_RUNNERS_ENABLED=true
-ENV N8N_EDITOR_BASE_URL=""
-ENV N8N_WEBHOOK_URL=""
+ENV N8N_LISTEN_ADDRESS=0.0.0.0
+ENV N8N_WEBHOOK_URL=https://n8n-serverless-1069021792204.us-central1.run.app
+ENV N8N_EDITOR_BASE_URL=https://n8n-serverless-1069021792204.us-central1.run.app
 ENV N8N_DISABLE_UI=false
-ENV N8N_DISABLE_PRODUCTION_MAIN_PROCESS=false
-ENV DB_SQLITE_POOL_SIZE=10
-ENV DB_SQLITE_VACUUM_ON_STARTUP=false
-ENV N8N_BLOCK_ENV_ACCESS_IN_NODE=false
-ENV GENERIC_TIMEZONE=UTC
-ENV TZ=UTC
-EXPOSE 5678
+ENV N8N_SKIP_OWNER_SETUP=false
 
-# Ensure proper permissions (matching official approach)
-USER root
-RUN mkdir -p /home/node/.n8n && chown -R node:node /home/node/.n8n
-USER node
+# Create a startup script to ensure n8n starts properly
+RUN echo '#!/bin/sh' > /home/node/startup.sh && \
+    echo 'echo "Starting n8n..."' >> /home/node/startup.sh && \
+    echo 'n8n start' >> /home/node/startup.sh && \
+    chmod +x /home/node/startup.sh
+
+# Use the startup script
+ENTRYPOINT ["/home/node/startup.sh"]

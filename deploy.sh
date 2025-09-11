@@ -87,13 +87,28 @@ setup_gcp() {
 
 # Function to deploy
 deploy() {
-    echo "🚀 Deploying n8n to Cloud Run using Cloud Build..."
+    echo "🚀 Deploying n8n to Cloud Run (Docker Compose style)..."
     
     # Set project
     gcloud config set project $PROJECT_ID
     
-    # Use Cloud Build instead of local Docker
-    echo "🏗️  Building and deploying with Cloud Build..."
+    # Ensure Docker is running
+    if ! docker info > /dev/null 2>&1; then
+        echo "❌ Docker is not running. Please start Docker and try again."
+        exit 1
+    fi
+    
+    # First, ensure n8n image is available in GCR
+    echo "📦 Ensuring n8n image is available in GCR..."
+    if ! gcloud container images describe gcr.io/$PROJECT_ID/n8n:latest >/dev/null 2>&1; then
+        echo "🔄 n8n image not found in GCR. Setting up..."
+        ./setup-gcr-image.sh
+    else
+        echo "✅ n8n image already available in GCR"
+    fi
+    
+    # Use Cloud Build for deployment
+    echo "🏗️  Deploying with Cloud Build..."
     gcloud builds submit \
       --config cloud-build.yaml \
       --substitutions=_PROJECT_ID=$PROJECT_ID,_REGION=$REGION,_SERVICE_NAME=$SERVICE_NAME \
@@ -109,6 +124,12 @@ deploy() {
         echo "👤 Username: $N8N_BASIC_AUTH_USER"
         echo "🔑 Password: [hidden]"
         echo "🔐 Encryption Key: $N8N_ENCRYPTION_KEY"
+        echo ""
+        echo "📋 Next steps:"
+        echo "1. Access your n8n instance using the URL above"
+        echo "2. Change the default password in n8n settings"
+        echo "3. Configure your workflows and integrations"
+        echo "4. Set up webhooks using the service URL"
     else
         echo "❌ Deployment failed! Check the build logs."
         exit 1

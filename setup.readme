@@ -1,0 +1,56 @@
+## n8n on Cloud Run: Low-startup-time setup
+
+### Goal
+Reduce cold start latency and avoid migration timeouts by keeping 1 warm instance and reducing non-essential startup work.
+
+### What changed
+- Set Cloud Run `--min-instances` to `1` (keeps one instance warm).
+- Disabled diagnostics via `N8N_DIAGNOSTICS_ENABLED=false`.
+- Disabled runners by default via `N8N_RUNNERS_ENABLED=false`.
+- Database remains SQLite on ephemeral storage (`/tmp/n8n.db`).
+
+### Prerequisites
+- gcloud SDK installed and authenticated (`gcloud auth login` and `gcloud config set project <PROJECT_ID>`).
+- Docker running locally.
+- Edit credentials in `config/environment.env` as needed (basic auth and encryption key).
+
+### Deploy (uses Cloud Build + Cloud Run)
+```bash
+# From repo root
+bash deploy.sh deploy
+```
+- The script builds the image, pushes to GCR, and deploys with the updated flags.
+- `cloud-build.yaml` contains the Cloud Run settings including min-instances and env vars.
+
+### Verify deployment
+- Get service URL:
+```bash
+gcloud run services describe $SERVICE_NAME --region $REGION --format 'value(status.url)'
+```
+- Check recent logs:
+```bash
+gcloud run services logs read $SERVICE_NAME --region $REGION --limit=100
+```
+- Quick latency probe (HTTP status only):
+```bash
+time curl -s -o /dev/null -w "%{http_code}\n" https://<service-url>
+```
+
+### Where the optimization lives
+- **Min instances**: `cloud-build.yaml` → `--min-instances '1'`
+- **Diagnostic and runner flags**: `cloud-build.yaml` → `--set-env-vars` contains `N8N_DIAGNOSTICS_ENABLED=false,N8N_RUNNERS_ENABLED=false`
+
+### Adjust settings later
+- Change warm capacity: edit `cloud-build.yaml` `--min-instances` (e.g., set to `0` to allow scale-to-zero).
+- Re-enable diagnostics or runners: modify the corresponding keys in `--set-env-vars` and redeploy.
+- Redeploy after changes:
+```bash
+bash deploy.sh deploy
+```
+
+### Security notes
+- Basic auth is enabled via `N8N_BASIC_AUTH_ACTIVE=true`, user/password from `config/environment.env`.
+- Rotate the `N8N_ENCRYPTION_KEY` only when you understand the impact on stored credentials.
+
+### Important note about SQLite
+- SQLite is stored at `/tmp/n8n.db` (ephemeral). On cold starts, data does not persist and migrations may re-run. For production-grade persistence and faster restarts, migrate to Postgres (Cloud SQL) and set `DB_TYPE=postgresdb` with the appropriate connection variables.
