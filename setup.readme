@@ -41,8 +41,11 @@ time curl -s -o /dev/null -w "%{http_code}\n" https://<service-url>
 - **Diagnostic and runner flags**: `cloud-build.yaml` → `--set-env-vars` contains `N8N_DIAGNOSTICS_ENABLED=false,N8N_RUNNERS_ENABLED=false`
 
 ### Adjust settings later
-- Change warm capacity: edit `cloud-build.yaml` `--min-instances` (e.g., set to `0` to allow scale-to-zero).
-- Re-enable diagnostics or runners: modify the corresponding keys in `--set-env-vars` and redeploy.
+- Keep one warm instance to avoid 503 after idle:
+  - `cloud-build.yaml` → `--min-instances '1'` (already set)
+  - CPU boost enabled via `--cpu-boost` (already set)
+- Postgres connection tuning to survive cold starts:
+  - `DB_POSTGRESDB_CONNECTION_TIMEOUT=120000`, `DB_POSTGRESDB_POOL_SIZE=4`
 - Redeploy after changes:
 ```bash
 bash deploy.sh deploy
