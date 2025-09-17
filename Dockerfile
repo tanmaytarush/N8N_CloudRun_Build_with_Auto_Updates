@@ -7,16 +7,17 @@ WORKDIR /home/node
 # Switch to node user
 USER node
 
-# Expose port 5678
+# Expose port 5678 (internal container port)
 EXPOSE 5678
 
-# Set environment variables for Cloud Run
+# Set environment variables for Cloud Run (CORRECTED)
 ENV N8N_HOST=0.0.0.0
 ENV N8N_PORT=5678
 ENV N8N_PROTOCOL=https
 ENV N8N_LISTEN_ADDRESS=0.0.0.0
-ENV N8N_WEBHOOK_URL=https://n8n-serverless-1069021792204.us-central1.run.app
+ENV WEBHOOK_URL=https://n8n-serverless-1069021792204.us-central1.run.app
 ENV N8N_EDITOR_BASE_URL=https://n8n-serverless-1069021792204.us-central1.run.app
+ENV N8N_PROXY_HOPS=1
 ENV N8N_DISABLE_UI=false
 ENV N8N_SKIP_OWNER_SETUP=false
 
