@@ -92,26 +92,29 @@ deploy() {
     # Set project
     gcloud config set project $PROJECT_ID
     
-    # Ensure Docker is running
-    if ! docker info > /dev/null 2>&1; then
-        echo "❌ Docker is not running. Please start Docker and try again."
-        exit 1
-    fi
-    
-    # First, ensure n8n image is available in GCR
-    echo "📦 Ensuring n8n image is available in GCR..."
-    if ! gcloud container images describe gcr.io/$PROJECT_ID/n8n:latest >/dev/null 2>&1; then
-        echo "🔄 n8n image not found in GCR. Setting up..."
-        ./setup-gcr-image.sh
-    else
-        echo "✅ n8n image already available in GCR"
-    fi
+    # Note: Cloud Build handles all Docker operations in the cloud,
+    # so local Docker is not required. Cloud Build can pull the base
+    # image (n8nio/n8n:latest) directly from Docker Hub.
     
     # Use Cloud Build for deployment
     echo "🏗️  Deploying with Cloud Build..."
+    # Get or construct webhook URL
+    if [ -z "$WEBHOOK_URL" ] && [ -z "$N8N_EDITOR_BASE_URL" ]; then
+        # Try to get service URL if service exists
+        if gcloud run services describe $SERVICE_NAME --region $REGION >/dev/null 2>&1; then
+            WEBHOOK_URL=$(gcloud run services describe $SERVICE_NAME --region $REGION --format 'value(status.url)')
+        else
+            # Construct URL from known pattern
+            WEBHOOK_URL="https://${SERVICE_NAME}-${PROJECT_ID}.${REGION}.run.app"
+        fi
+    fi
+    WEBHOOK_URL=${WEBHOOK_URL:-${N8N_EDITOR_BASE_URL:-https://${SERVICE_NAME}-${PROJECT_ID}.${REGION}.run.app}}
+    # Remove trailing slash if present
+    WEBHOOK_URL=${WEBHOOK_URL%/}
+    
     gcloud builds submit \
       --config cloud-build.yaml \
-      --substitutions=_PROJECT_ID=$PROJECT_ID,_REGION=$REGION,_SERVICE_NAME=$SERVICE_NAME,_DB_TYPE=${DB_TYPE:-postgresdb},_DB_HOST=${DB_POSTGRESDB_HOST:-127.0.0.1},_DB_PORT=${DB_POSTGRESDB_PORT:-5432},_DB_NAME=${DB_POSTGRESDB_DATABASE:-n8n},_DB_USER=${DB_POSTGRESDB_USER:-n8n},_DB_PASSWORD=${DB_POSTGRESDB_PASSWORD:-change-me},_DB_SCHEMA=${DB_POSTGRESDB_SCHEMA:-public},_CLOUDSQL_INSTANCE=${CLOUDSQL_INSTANCE:-} \
+      --substitutions=_PROJECT_ID=$PROJECT_ID,_REGION=$REGION \
       --project $PROJECT_ID
     
     if [ $? -eq 0 ]; then
