@@ -15,14 +15,29 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/${_PROJECT_ID}/n8n:latest']
 
-# Deploy to Cloud Run by replacing the full service spec from infra/n8n-service.yaml.
-# This preserves ALL annotations (including cloudsql-instances) on every deploy.
-# Never swap this back to 'gcloud run deploy' or 'gcloud run services update'.
+# Deploy to Cloud Run.
+# --add-cloudsql-instances is ALWAYS included here so the annotation is never dropped.
+# --allow-unauthenticated is set via the Cloud Run deploy API (bypasses the org IAM domain policy).
+# Sensitive values are pulled from Secret Manager via --set-secrets (not embedded in plain text).
 - name: 'gcr.io/cloud-builders/gcloud'
   args: [
-    'run', 'services', 'replace', 'infra/n8n-service.yaml',
+    'run', 'deploy', 'n8n-serverless',
+    '--image', 'gcr.io/${_PROJECT_ID}/n8n:latest',
     '--region', '${_REGION}',
-    '--project', '${_PROJECT_ID}'
+    '--platform', 'managed',
+    '--allow-unauthenticated',
+    '--port', '5678',
+    '--memory', '4Gi',
+    '--cpu', '2',
+    '--min-instances', '1',
+    '--max-instances', '3',
+    '--concurrency', '80',
+    '--timeout', '900',
+    '--ingress', 'all',
+    '--cpu-boost',
+    '--add-cloudsql-instances', 'betterprep-main-account:us-central1:n8n-postgres',
+    '--set-secrets', 'DB_POSTGRESDB_PASSWORD=n8n-db-password:latest,N8N_ENCRYPTION_KEY=n8n-encryption-key:latest,N8N_BASIC_AUTH_PASSWORD=n8n-basic-auth-password:latest',
+    '--set-env-vars', 'NODE_ENV=production,DB_TYPE=postgresdb,DB_POSTGRESDB_HOST=/cloudsql/betterprep-main-account:us-central1:n8n-postgres,DB_POSTGRESDB_PORT=5432,DB_POSTGRESDB_DATABASE=n8n-postgres,DB_POSTGRESDB_USER=postgres,DB_POSTGRESDB_SCHEMA=public,DB_POSTGRESDB_CONNECTION_TIMEOUT=120000,DB_POSTGRESDB_POOL_SIZE=4,N8N_RUNNERS_ENABLED=false,N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=false,N8N_DIAGNOSTICS_ENABLED=false,N8N_BLOCK_ENV_ACCESS_IN_NODE=false,N8N_DISABLE_UI=false,N8N_SKIP_OWNER_SETUP=false,N8N_HOST=0.0.0.0,N8N_PORT=5678,N8N_PROTOCOL=https,N8N_PROXY_HOPS=1,N8N_PATH=/,N8N_LISTEN_ADDRESS=0.0.0.0,N8N_ENDPOINT_REST=rest,WEBHOOK_URL=https://n8n-serverless-1069021792204.us-central1.run.app,N8N_EDITOR_BASE_URL=https://n8n-serverless-1069021792204.us-central1.run.app,N8N_BASIC_AUTH_ACTIVE=true,N8N_BASIC_AUTH_USER=admin,GENERIC_TIMEZONE=UTC,TZ=UTC'
   ]
 
 images:

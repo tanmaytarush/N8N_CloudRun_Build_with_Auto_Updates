@@ -41,9 +41,9 @@ upsert_secret() {
 echo "==> Ensuring secrets exist in Secret Manager..."
 # These initial values are used only on first creation.
 # After creation, update values via 'gcloud secrets versions add', not here.
-upsert_secret "n8n-db-password"         "Welcome@123"
+upsert_secret "n8n-db-password"         "N8N@betterprep"
 upsert_secret "n8n-encryption-key"      "2d51aedbfbffe89d9ad53182bd966398"
-upsert_secret "n8n-basic-auth-password" 'M#x46$LZ&fUtc2u'
+upsert_secret "n8n-basic-auth-password" "Welcome@123"
 
 # ── Grant Secret Accessor role to the Cloud Run service account ───────────────
 
